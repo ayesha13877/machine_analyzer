@@ -25,7 +25,7 @@ import streamlit as st
 APP_TITLE = "AI Machine Diagnosis Assistant"
 APP_TAGLINE = "AI-assisted troubleshooting support for rotating & pneumatic equipment"
 
-KNOWLEDGE_BASE_PATH = Path(__file__).parent / "knowledge_base" / "machine_manual.json"
+KNOWLEDGE_BASE_PATH = Path(__file__).parent / "machine_manual.json"
 
 # Groq uses an OpenAI-compatible chat completions endpoint.
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
