@@ -1,0 +1,138 @@
+{
+  "Pump": {
+    "display_name": "Centrifugal Pump",
+    "components": ["Impeller", "Pump casing", "Pump shaft", "Suction inlet", "Discharge outlet", "Mechanical seal or packing", "Bearings", "Wear rings", "Coupling", "Suction and discharge piping"],
+    "common_problems": ["Low flow", "Low pressure", "Excessive vibration", "Leakage", "Cavitation", "Overheating", "Unusual noise", "Priming problems"],
+    "entries": [
+      {
+        "problem": "Low flow",
+        "keywords": ["low flow", "reduced flow", "flow drop", "not enough flow", "pressure drop", "reduced delivery"],
+        "possible_causes": ["Pump operating away from the intended operating point", "Suction-side restriction or blockage", "Unfavorable inlet flow conditions", "Air or gas entering the suction line", "Hydraulic problems in the system"],
+        "troubleshooting": ["Compare the current operating point with the pump's intended operating range", "Inspect the suction line and strainer for restriction or blockage", "Check for air ingress at suction fittings and seals", "Verify valve positions on suction and discharge lines"],
+        "solutions": ["Clear suction-side restrictions", "Repair air leaks at suction fittings", "Correct valve positioning", "Adjust operating point closer to design conditions"]
+      },
+      {
+        "problem": "Low pressure",
+        "keywords": ["low pressure", "pressure drop", "not enough pressure", "weak discharge"],
+        "possible_causes": ["Pump operating away from the intended operating point", "Suction-side problems", "Air or gas entering the suction flow", "Flow restrictions in the system", "Wear ring or internal clearance wear"],
+        "troubleshooting": ["Check suction conditions and strainer", "Check for air entering the suction flow", "Inspect for restrictions in suction and discharge lines", "Compare pressure gauge readings with rated performance"],
+        "solutions": ["Improve suction conditions", "Remove unnecessary flow restrictions", "Repair leaks introducing air into the flow", "Replace worn internal clearances if wear is confirmed"]
+      },
+      {
+        "problem": "Excessive vibration",
+        "keywords": ["vibration", "shaking", "unbalance", "vibrating"],
+        "possible_causes": ["Mechanical unbalance", "Cavitation", "Turbulent inlet flow", "Operation at low-flow or off-design conditions", "Misalignment between pump and driver"],
+        "troubleshooting": ["Measure vibration levels where monitoring equipment is available", "Check for cavitation symptoms (noise, pressure fluctuation)", "Inspect inlet piping for turbulence-causing fittings", "Check coupling and shaft alignment"],
+        "solutions": ["Correct mechanical unbalance", "Improve inlet flow conditions", "Avoid sustained operation far from the intended operating range", "Correct alignment between pump and driver"]
+      },
+      {
+        "problem": "Cavitation",
+        "keywords": ["cavitation", "noise from suction", "crackling noise", "gravel noise"],
+        "possible_causes": ["Insufficient NPSH available", "Poor suction conditions", "High losses in the suction system", "Unfavorable inlet flow"],
+        "troubleshooting": ["Evaluate NPSH available versus NPSH required", "Inspect suction piping for excessive losses", "Check suction lift and fluid temperature", "Listen for characteristic crackling/gravel-like noise"],
+        "solutions": ["Increase NPSH available where required", "Use appropriately sized suction piping and low-loss fittings", "Reduce suction lift or improve suction conditions", "Consider a bypass or control method to avoid damaging low-flow operation"]
+      },
+      {
+        "problem": "Overheating",
+        "keywords": ["overheating", "hot pump", "high temperature", "temperature rise"],
+        "possible_causes": ["Prolonged low-flow or shut-off operation", "Insufficient cooling or flushing flow", "Bearing-related friction", "Cavitation"],
+        "troubleshooting": ["Check how long the pump has run at low or no flow", "Check bearing condition and lubrication", "Check for cavitation symptoms", "Monitor casing and bearing temperature"],
+        "solutions": ["Avoid prolonged low-flow or shut-off operation", "Restore adequate cooling/flushing flow", "Service or replace affected bearings", "Address the root cause of cavitation if present"]
+      },
+      {
+        "problem": "Unusual noise",
+        "keywords": ["noise", "unusual sound", "noisy pump", "grinding sound"],
+        "possible_causes": ["Cavitation", "Mechanical unbalance", "Bearing wear", "Turbulent inlet flow"],
+        "troubleshooting": ["Identify whether the noise is hydraulic (cavitation-like) or mechanical (grinding/knocking)", "Check bearing condition", "Inspect inlet piping configuration", "Check for unbalance"],
+        "solutions": ["Address cavitation causes if hydraulic noise is confirmed", "Service or replace worn bearings", "Correct unbalance", "Improve inlet piping configuration"]
+      }
+    ],
+    "safety_precautions": ["Shut down the pump before maintenance", "Isolate the pump from its energy source and follow approved Lockout/Tagout procedures", "Depressurize the system before opening it", "Safely handle hazardous or hot liquid", "Wear appropriate PPE", "Do not inspect rotating components while exposed and operating", "Follow the manufacturer's specific maintenance instructions"]
+  },
+  "Bearing": {
+    "display_name": "Bearing",
+    "components": ["Inner ring", "Outer ring", "Rolling elements", "Cage", "Lubricant", "Seals or shields", "Shaft", "Bearing housing"],
+    "common_problems": ["Excessive vibration", "Overheating", "Unusual noise", "Wear", "Lubrication problems", "Excessive clearance"],
+    "entries": [
+      {
+        "problem": "Excessive vibration",
+        "keywords": ["vibration", "shaking", "vibrating bearing"],
+        "possible_causes": ["Unbalanced load", "Misalignment", "Improper mounting", "Incorrect bearing clearance", "Contamination"],
+        "troubleshooting": ["Measure vibration where monitoring equipment is available", "Check alignment of the shaft and associated components", "Inspect mounting for looseness or incorrect fit", "Inspect for contamination"],
+        "solutions": ["Rebalance the machine if load imbalance is identified", "Correct shaft or machine alignment", "Correct improper mounting", "Clean contamination and replace affected lubricant"]
+      },
+      {
+        "problem": "Overheating",
+        "keywords": ["overheating", "hot bearing", "high temperature", "temperature rise"],
+        "possible_causes": ["Incorrect or insufficient lubrication", "Incorrect lubricant type", "Lubricant contamination", "Misalignment", "Excessive load"],
+        "troubleshooting": ["Check operating temperature against normal conditions", "Inspect lubrication condition and check for leakage", "Check alignment", "Inspect for excessive load conditions"],
+        "solutions": ["Apply the correct lubricant type and quantity", "Correct lubrication intervals", "Correct alignment", "Replace contaminated lubricant"]
+      },
+      {
+        "problem": "Unusual noise",
+        "keywords": ["noise", "grinding", "squeaking", "unusual sound", "metallic sound"],
+        "possible_causes": ["Poor lubrication", "Contamination", "Bearing wear or surface damage", "Misalignment"],
+        "troubleshooting": ["Listen for abnormal noise and characterize it (grinding, squeaking, irregular)", "Inspect lubrication condition", "During shutdown, inspect bearing condition for marks, scratches, or discoloration", "Check alignment"],
+        "solutions": ["Lubricate correctly", "Clean contamination", "Align the shaft and associated components", "Replace a severely damaged bearing"]
+      },
+      {
+        "problem": "Wear",
+        "keywords": ["wear", "worn bearing", "surface damage"],
+        "possible_causes": ["Contamination", "Poor lubrication", "Misalignment", "Excessive load or unbalance"],
+        "troubleshooting": ["Inspect the bearing surface for marks, scratches, discoloration, or wear during shutdown", "Check lubrication history", "Check alignment and mounting"],
+        "solutions": ["Replace a worn or damaged bearing", "Correct lubrication practice", "Correct alignment and mounting"]
+      },
+      {
+        "problem": "Lubrication problems",
+        "keywords": ["lubrication", "grease", "oil problem", "dry bearing"],
+        "possible_causes": ["Incorrect or insufficient lubrication", "Incorrect lubricant type", "Lubricant contamination", "Seal wear allowing contamination"],
+        "troubleshooting": ["Inspect lubrication condition and quantity", "Check for leakage past seals", "Verify lubricant type against manufacturer recommendation"],
+        "solutions": ["Apply the correct lubricant type and quantity", "Correct lubrication intervals", "Replace worn seals", "Clean and replace contaminated lubricant"]
+      },
+      {
+        "problem": "Excessive clearance",
+        "keywords": ["clearance", "excessive shaft movement", "looseness", "loose shaft"],
+        "possible_causes": ["Incorrect bearing clearance", "Incorrect shaft fit", "Improper mounting", "Wear over time"],
+        "troubleshooting": ["Observe unusual shaft movement or looseness", "Check bearing clearance against specification", "Inspect mounting and shaft fit"],
+        "solutions": ["Correct excessive looseness or incorrect fit", "Correct improper mounting", "Replace the bearing if wear has caused excessive clearance"]
+      }
+    ],
+    "safety_precautions": ["Shut down the machine before detailed inspection", "Follow the facility's approved isolation procedure", "Prevent accidental machine startup", "Use appropriate PPE", "Use correct bearing mounting and dismounting tools", "Follow lubricant and chemical safety requirements", "Do not touch rotating components during operation"]
+  },
+  "Air Compressor": {
+    "display_name": "Air Compressor",
+    "components": ["Air intake", "Air filter", "Compression element", "Inlet valve", "Oil/lubrication system", "Oil filter", "Oil separator", "Cooling system", "Safety valve", "Pressure-control system", "Hoses and piping", "Condensate trap"],
+    "common_problems": ["Low pressure", "Overheating", "Oil leakage", "Excessive noise", "Excessive vibration", "Frequent stopping", "Reduced performance", "Does not start", "Does not load"],
+    "entries": [
+      {
+        "problem": "Low pressure",
+        "keywords": ["low pressure", "not enough pressure", "pressure not increasing", "reduced delivery"],
+        "possible_causes": ["Air demand exceeds compressor delivery capacity", "Clogged air filters", "Air leaks in the system"],
+        "troubleshooting": ["Check pressure settings against the compressor's instruction manual", "Check the air filter for blockage", "Inspect valves, hoses, and connections for leakage", "Compare air demand with compressor delivery capacity"],
+        "solutions": ["Replace clogged air filters", "Repair air leaks", "Ensure compressor capacity matches system demand"]
+      },
+      {
+        "problem": "Overheating",
+        "keywords": ["overheating", "high temperature", "hot compressor", "temperature rise"],
+        "possible_causes": ["Insufficient cooling air", "Low oil level", "Dirty oil cooler", "Restricted or clogged cooling system", "Insufficient cooling-water flow (water-cooled systems)"],
+        "troubleshooting": ["Check cooling airflow and ventilation around the compressor", "Check oil level", "Inspect the cooler for dirt or blockage", "Check cooling-water flow and temperature where applicable"],
+        "solutions": ["Remove cooling-air restrictions and improve room ventilation", "Correct low oil level", "Clean dirty coolers", "Have severely clogged cooling components serviced"]
+      },
+      {
+        "problem": "Does not start",
+        "keywords": ["does not start", "won't start", "fails to start", "no start"],
+        "possible_causes": ["Overload protection activated", "Circuit breaker issues", "Thermistor problems", "Incorrect phase sequence", "Interrupted wiring"],
+        "troubleshooting": ["Check the power supply and protection devices", "Check for a tripped overload or circuit breaker", "Check phase sequence and wiring continuity"],
+        "solutions": ["Reset an overload once, only where permitted by the manufacturer's procedure", "Check electrical connections and phase sequence", "If the fault persists, obtain qualified technical service"]
+      },
+      {
+        "problem": "Does not load",
+        "keywords": ["does not load", "won't load", "runs but no load", "no loading"],
+        "possible_causes": ["Faulty solenoid valve", "Inlet valve stuck closed", "Leakage in control-air tubing"],
+        "troubleshooting": ["Check control components such as the solenoid and inlet valve", "Inspect control-air tubing for leaks"],
+        "solutions": ["Replace a faulty solenoid valve", "Inspect and free the inlet valve", "Repair or replace leaking control-air tubing"]
+      }
+    ],
+    "safety_precautions": ["Isolate the compressor from the power supply before inspection or maintenance", "Release all system pressure before opening panels", "Follow the machine's specified isolation procedure", "Do not open panels or inspect internal components until safely isolated", "Follow the manufacturer's model-specific safety instructions", "Use appropriate PPE", "Have complex repairs performed by qualified personnel"]
+  }
+}
