@@ -349,10 +349,69 @@ hr { border: none; height: 1px; background: linear-gradient(90deg, transparent, 
     border: 1px solid rgba(255,150,160,0.5); color: #7A2530; font-size: 0.92rem;
 }
 
+/* ---------- Diagnosis output (quick view) ---------- */
+.out-label {
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted); margin: 1.7rem 0 0.65rem;
+}
+.quick-card {
+    position: relative; overflow: hidden; border-radius: 28px; padding: 1.5rem 1.7rem 1.4rem;
+    background: var(--glass); border: 1px solid var(--edge);
+    backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 2px 4px rgba(60,70,140,0.06), 0 26px 50px -22px var(--glow, rgba(120,130,255,0.5));
+    animation: rise 0.55s var(--ease) both;
+}
+.quick-card::before {
+    content: ""; position: absolute; width: 230px; height: 230px; border-radius: 50%;
+    top: -100px; right: -80px; opacity: 0.65;
+    background: radial-gradient(circle, var(--tint, #E4DAFF) 0%, transparent 70%);
+}
+.quick-card > * { position: relative; }
+.card-icon.tiny {
+    width: 44px; height: 44px; border-radius: 15px; display: grid; place-items: center; font-size: 1.25rem;
+    background: linear-gradient(145deg, rgba(255,255,255,0.98), var(--tint, #E4DAFF));
+    box-shadow: 0 10px 22px -10px var(--glow, rgba(120,130,255,0.5)), inset 0 1px 0 #fff;
+}
+.qc-top { display: flex; align-items: center; gap: 0.75rem; }
+.qc-machine { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.qc-problem { font-family: 'Bricolage Grotesque', sans-serif; font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 700; letter-spacing: -0.02em; margin: 0.9rem 0 0.15rem; color: var(--ink); }
+.qc-sub { color: var(--muted); font-size: 0.92rem; }
+.qc-cause-label { color: var(--muted); font-size: 0.85rem; font-weight: 600; margin-top: 1.1rem; }
+.qc-cause { font-size: 1.2rem; font-weight: 600; line-height: 1.4; color: var(--ink); margin-top: 0.15rem; }
+.qc-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.1rem; }
+
+.check-list { display: grid; gap: 0.6rem; }
+.check {
+    display: flex; align-items: flex-start; gap: 0.9rem; padding: 0.85rem 1rem; border-radius: 18px;
+    background: var(--glass); border: 1px solid var(--edge); box-shadow: 0 4px 14px -10px rgba(80,90,190,0.35);
+    transition: transform 0.25s var(--ease), border-color 0.25s, box-shadow 0.25s;
+}
+.check:hover { transform: translateX(3px); border-color: rgba(124,147,255,0.5); box-shadow: 0 12px 26px -16px rgba(100,110,240,0.6); }
+.check .num {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 0.92rem; color: #3B45B8;
+    background: linear-gradient(145deg, #fff, var(--tint, #E4DAFF));
+    box-shadow: 0 8px 16px -10px var(--glow, rgba(120,130,255,0.6));
+}
+.check .t { font-weight: 600; color: var(--ink); line-height: 1.35; padding-top: 0.15rem; }
+.check .d {
+    font-size: 0.85rem; color: var(--muted); margin-top: 0.15rem; line-height: 1.45;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.next-card {
+    padding: 1rem 1.2rem; border-radius: 20px; font-weight: 600; line-height: 1.5; color: var(--ink);
+    background: linear-gradient(120deg, rgba(143,168,255,0.22), rgba(168,239,211,0.30));
+    border: 1px solid rgba(124,147,255,0.4);
+}
+.safety-box .sb-title { font-weight: 700; font-size: 0.75rem; letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 0.4rem; }
+[data-testid="stExpander"] h2 { font-size: 1.1rem; }
+[data-testid="stExpander"] h3 { font-size: 1rem; }
+
 /* ---------- Motion ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-    .hero, .machine-head, [data-testid="stVerticalBlockBorderWrapper"] { animation: none; }
+    .hero, .machine-head, .quick-card, [data-testid="stVerticalBlockBorderWrapper"] { animation: none; }
     .machine-card, .stButton > button, div[role="radiogroup"] > label, .machine-card .card-icon { transition: none; }
 }
 """
@@ -791,36 +850,248 @@ def run_diagnosis(kb, machine, problem, description):
     st.session_state.matched_entry = matched_entry
 
 
+# =========================================================================
+# DIAGNOSIS OUTPUT HELPERS
+# These only READ the model's Markdown reply and reorganize how it is shown.
+# The prompt, API call and diagnosis logic are not touched.
+# =========================================================================
+
+def _plain(text):
+    """Strip Markdown emphasis and collapse whitespace (for short UI labels)."""
+    text = re.sub(r"[*`]+", "", text or "")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _rich_html(text):
+    """Escape text, keep **bold**, turn '-' / '*' bullets into '•', keep line breaks."""
+    text = html.escape((text or "").strip())
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    lines = [re.sub(r"^\s*[-*•]\s+", "• ", ln) for ln in text.splitlines() if ln.strip()]
+    return "<br>".join(lines)
+
+
+def split_report_sections(report_text):
+    """Split the reply on '## ' headings -> {lowercase title: body}."""
+    sections = {}
+    parts = re.split(r"(?m)^##\s+(.+?)\s*$", report_text or "")
+    for i in range(1, len(parts) - 1, 2):
+        sections[parts[i].strip().lower()] = parts[i + 1].strip()
+    return sections
+
+
+def find_section(sections, *keys):
+    for title, body in sections.items():
+        if any(k in title for k in keys):
+            return body
+    return ""
+
+
+def parse_causes(body):
+    """
+    Parse the 'Possible Issues' section into a list of dicts:
+    {tier, cause, why, source}. Returns [] if the format is not recognised.
+    """
+    items = []
+    chunks = re.split(r"(?m)^###\s+(.+?)\s*$", body or "")
+    blocks = [("Possible", chunks[0])]
+    for i in range(1, len(chunks) - 1, 2):
+        blocks.append((chunks[i].strip(), chunks[i + 1]))
+
+    marker = re.compile(r"\*\*\s*Possible Cause\s*:?\s*\*\*\s*:?", re.I)
+    for tier, text in blocks:
+        for piece in marker.split(text)[1:]:
+            cause = re.split(r"\*\*\s*(?:Why|Source)\s*:?\s*\*\*", piece, maxsplit=1, flags=re.I)[0]
+            why_m = re.search(
+                r"\*\*\s*Why\s*:?\s*\*\*\s*:?\s*(.*?)(?=\*\*\s*Source\s*:?\s*\*\*|\Z)",
+                piece, flags=re.S | re.I,
+            )
+            src_m = re.search(r"\*\*\s*Source\s*:?\s*\*\*\s*:?\s*(.*)", piece, flags=re.S | re.I)
+            source = ""
+            if src_m and src_m.group(1).strip():
+                source = _plain(src_m.group(1).strip().splitlines()[0])
+            cause = _plain(cause)
+            if not cause:
+                continue
+            items.append({
+                "tier": tier,
+                "cause": cause,
+                "why": why_m.group(1).strip() if why_m else "",
+                "source": source,
+            })
+    return items
+
+
+def parse_steps(body):
+    """Return the list of numbered/bulleted troubleshooting steps."""
+    return re.findall(r"(?m)^\s*(?:\d+[.)]|[-*•])\s+(.+?)\s*$", body or "")
+
+
+def split_check_text(text, limit=70):
+    """Turn a full step sentence into (short title, optional detail)."""
+    text = _plain(text)
+    parts = re.split(r"(?<=[.:;])\s+|\s[-\u2013\u2014]\s", text, maxsplit=1)
+    title = parts[0].rstrip(".:; ")
+    rest = parts[1].strip() if len(parts) > 1 else ""
+    if len(title) > limit:
+        cut = title[:limit].rsplit(" ", 1)[0].rstrip(",;:- ")
+        title, rest = cut + "…", text
+    return title, rest
+
+
+def _is_manual(item):
+    return "manual" in item["source"].lower()
+
+
+def _is_ai(item):
+    return bool(re.search(r"\bai\b", item["source"].lower()))
+
+
+def _render_items(items):
+    for it in items:
+        st.markdown(f"**{it['cause']}** ({it['tier']})")
+        if it["why"]:
+            st.markdown(it["why"])
+        if it["source"]:
+            st.caption(f"Source: {it['source']}")
+
+
+# =========================================================================
+# DIAGNOSIS OUTPUT (Quick diagnosis -> Checks -> Next check -> Safety -> Details)
+# =========================================================================
+
 def render_report(machine, problem, matched_entry, report_text):
     st.divider()
-    st.markdown('<div class="section-title">📋 Diagnosis Report</div>', unsafe_allow_html=True)
-    st.write("")
+
+    sections = split_report_sections(report_text)
+    summary = find_section(sections, "summary")
+    causes = parse_causes(find_section(sections, "possible issues", "possible causes"))
+    troubleshooting_body = find_section(sections, "troubleshooting")
+    steps = parse_steps(troubleshooting_body)
+    next_check = _plain(find_section(sections, "next check", "next"))
+    confidence = extract_confidence(report_text)
+    conf_body = find_section(sections, "confidence")
+    conf_reason = ""
+    m = re.search(r"(?:High|Medium|Low)\W*(.*)", conf_body, flags=re.S | re.I)
+    if m:
+        conf_reason = _plain(m.group(1))
+    safety_body = find_section(sections, "safety")
+
+    top = next((c for c in causes if "most" in c["tier"].lower()), causes[0] if causes else None)
+    other_causes = [c for c in causes if c is not top]
+    manual_items = [c for c in causes if _is_manual(c)]
+    ai_items = [c for c in causes if _is_ai(c)]
+
+    parsed_ok = bool(top or steps or next_check)
+
+    # ---- 1. QUICK DIAGNOSIS ------------------------------------------------
+    if problem == "Other":
+        headline = "Reported issue"
+        desc = _plain(st.session_state.get("description", ""))
+        sub = desc if len(desc) <= 140 else desc[:140].rsplit(" ", 1)[0] + "…"
+    else:
+        headline, sub = str(problem), ""
+
+    if top:
+        cause_text = top["cause"]
+    elif summary:
+        first = re.split(r"(?<=[.!?])\s", _plain(summary), maxsplit=1)[0]
+        cause_text = first
+    else:
+        cause_text = "See the full report below."
 
     source_html = (
         '<span class="source-tag-manual">Manual-supported problem</span>'
         if matched_entry
         else '<span class="source-tag-ai">Primarily AI reasoning</span>'
     )
-    confidence = extract_confidence(report_text)
     conf_html = (
         f'<span class="conf conf-{confidence.lower()}">Confidence: {confidence}</span>'
-        if confidence
-        else ""
+        if confidence else ""
     )
 
-    with st.container(border=True):
+    st.markdown('<div class="out-label">Quick diagnosis</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="quick-card" style="{tint_style(machine)}">'
+        '<div class="qc-top">'
+        f'<div class="card-icon tiny">{MACHINE_ICONS.get(machine, "🛠️")}</div>'
+        f'<div class="qc-machine">{html.escape(str(machine))} diagnosis</div></div>'
+        f'<div class="qc-problem">⚠️ {html.escape(headline)}</div>'
+        + (f'<div class="qc-sub">{html.escape(sub)}</div>' if sub else "")
+        + '<div class="qc-cause-label">Most likely cause</div>'
+        f'<div class="qc-cause">{html.escape(cause_text)}</div>'
+        f'<div class="qc-meta">{conf_html}{source_html}</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ---- 2. TOP RECOMMENDED CHECKS ----------------------------------------
+    if steps:
+        rows = []
+        for i, step in enumerate(steps[:3], start=1):
+            title, rest = split_check_text(step)
+            rows.append(
+                '<div class="check">'
+                f'<div class="num">{i:02d}</div>'
+                '<div class="ct">'
+                f'<div class="t">{html.escape(title)}</div>'
+                + (f'<div class="d">{html.escape(rest)}</div>' if rest else "")
+                + '</div></div>'
+            )
+        st.markdown('<div class="out-label">What to check</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="chips">'
-            f'<span class="chip">Machine <b>{html.escape(str(machine))}</b></span>'
-            f'<span class="chip">Reported <b>{html.escape(str(problem))}</b></span>'
-            f'{source_html}{conf_html}'
-            '</div>',
+            f'<div class="check-list" style="{tint_style(machine)}">{"".join(rows)}</div>',
             unsafe_allow_html=True,
         )
-        st.markdown(report_text)
+
+    # ---- 3. NEXT RECOMMENDED CHECK ----------------------------------------
+    if next_check:
+        st.markdown('<div class="out-label">Next recommended check</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="next-card">{html.escape(next_check)}</div>', unsafe_allow_html=True)
+
+    # ---- 4. SAFETY WARNING -------------------------------------------------
+    model_safety = _rich_html(safety_body)
+    st.markdown(
+        '<div class="safety-box"><div class="sb-title">⚠️ Safety warning</div>'
+        + (f'{model_safety}<br><br>' if model_safety else "")
+        + 'Always shut down and isolate the machine safely before physical inspection. '
+        'If the problem persists or requires specialist repair, contact a qualified technician.</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ---- 5. DETAILED REPORT (collapsed by default) ------------------------
+    st.markdown('<div class="out-label">Detailed report</div>', unsafe_allow_html=True)
+
+    if summary or (top and top["why"]):
+        with st.expander("Why this diagnosis is likely"):
+            if summary:
+                st.markdown(summary)
+            if top and top["why"]:
+                st.markdown(f"**Main reasoning ({top['cause']}):** {top['why']}")
+
+    if other_causes:
+        with st.expander("Other possible causes"):
+            _render_items(other_causes)
+
+    if troubleshooting_body:
+        with st.expander("Detailed troubleshooting"):
+            st.markdown(troubleshooting_body)
+
+    if causes or conf_reason:
+        with st.expander("Evidence / reasoning"):
+            _render_items(causes)
+            if conf_reason:
+                st.markdown(f"**Confidence ({confidence or 'n/a'}):** {conf_reason}")
+
+    if manual_items:
+        with st.expander("Manual-based findings"):
+            _render_items(manual_items)
+
+    if ai_items:
+        with st.expander("AI-based possibilities"):
+            _render_items(ai_items)
 
     if matched_entry:
-        with st.expander("View matched manual excerpt"):
+        with st.expander("Matched manual excerpt"):
             st.markdown(f"**Manual problem entry:** {matched_entry.get('problem')}")
             st.markdown("**Possible causes (manual):**")
             for c in matched_entry.get("possible_causes", []):
@@ -832,7 +1103,9 @@ def render_report(machine, problem, matched_entry, report_text):
             for s in matched_entry.get("solutions", []):
                 st.markdown(f"- {s}")
 
-    st.markdown('<div class="safety-box">⚠️ Always shut down and isolate the machine safely before physical inspection. If the problem persists or requires specialist repair, contact a qualified technician.</div>', unsafe_allow_html=True)
+    # Always keep the complete, unmodified AI reply available.
+    with st.expander("Full AI report (original text)", expanded=not parsed_ok):
+        st.markdown(report_text)
 
 
 # =========================================================================
