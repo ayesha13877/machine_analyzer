@@ -11,6 +11,7 @@ This app is a decision-support / troubleshooting assistant.
 It does NOT provide a guaranteed diagnosis.
 """
 
+import html
 import json
 import re
 from pathlib import Path
@@ -55,6 +56,13 @@ MACHINE_DESCRIPTIONS = {
     "Air Compressor": "Machines that compress and supply pressurized air.",
 }
 
+# Per-machine pastel tint (card icon + glow). Purely visual.
+MACHINE_TINTS = {
+    "Pump": {"tint": "#D6E1FF", "glow": "rgba(115,140,255,0.55)"},
+    "Bearing": {"tint": "#E4DAFF", "glow": "rgba(160,135,255,0.55)"},
+    "Air Compressor": {"tint": "#CFF5E6", "glow": "rgba(90,205,160,0.55)"},
+}
+
 
 # =========================================================================
 # PAGE SETUP
@@ -67,58 +75,289 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.markdown(
-    """
-    <style>
-    .main .block-container {padding-top: 2rem; max-width: 900px;}
-    .machine-card {
-        border: 1px solid #333c47;
-        border-radius: 10px;
-        padding: 1.2rem;
-        text-align: center;
-        background-color: rgba(120,120,140,0.06);
-        min-height: 220px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-    .machine-card:hover {
-        transform: scale(1.03);
-        border-color: #6c7a8f;
-    }
-    .machine-card .card-icon {
-        font-size: 2.2rem;
-    }
-    .machine-card .card-title {
-        font-weight: 600;
-        font-size: 1.05rem;
-        margin-top: 0.3rem;
-    }
-    .machine-card .card-desc {
-        font-size: 0.82rem;
-        opacity: 0.75;
-        margin-top: 0.3rem;
-    }
-    .source-tag-manual {
-        display:inline-block; padding:2px 10px; border-radius:12px;
-        background-color:#1f6f43; color:white; font-size:0.78rem; font-weight:600;
-    }
-    .source-tag-ai {
-        display:inline-block; padding:2px 10px; border-radius:12px;
-        background-color:#8a5a00; color:white; font-size:0.78rem; font-weight:600;
-    }
-    .safety-box {
-        border-left: 4px solid #c62828;
-        background-color: rgba(198,40,40,0.08);
-        padding: 0.9rem 1.1rem;
-        border-radius: 6px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+CUSTOM_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400;500;600;700&display=swap');
+
+:root {
+    --ink: #1F2340;
+    --muted: #5F6690;
+    --blue: #8FA8FF;
+    --lav: #C3B4FF;
+    --mint: #A8EFD3;
+    --glass: rgba(255,255,255,0.58);
+    --glass-strong: rgba(255,255,255,0.78);
+    --edge: rgba(255,255,255,0.85);
+    --shadow: 0 1px 2px rgba(60,70,140,0.06), 0 14px 34px -14px rgba(80,90,190,0.28);
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ---------- Base + layered background ---------- */
+.stApp {
+    background: linear-gradient(160deg, #F6F8FF 0%, #F1EFFF 48%, #ECF9F5 100%);
+    color: var(--ink);
+    font-family: 'Figtree', system-ui, sans-serif;
+}
+.stApp::before {
+    content: "";
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+        radial-gradient(520px 420px at 6% 4%, rgba(143,168,255,0.50), transparent 70%),
+        radial-gradient(460px 400px at 96% 10%, rgba(195,180,255,0.50), transparent 70%);
+    filter: blur(8px);
+}
+.stApp::after {
+    content: "";
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+        radial-gradient(520px 440px at 4% 98%, rgba(168,239,211,0.55), transparent 70%),
+        radial-gradient(420px 380px at 92% 92%, rgba(195,180,255,0.35), transparent 70%);
+    filter: blur(8px);
+}
+[data-testid="stHeader"] { background: transparent; }
+#MainMenu, footer { visibility: hidden; }
+.block-container {
+    position: relative; z-index: 1;
+    padding-top: 2.6rem; padding-bottom: 4rem; max-width: 980px;
+}
+
+/* ---------- Typography ---------- */
+.stApp p, .stApp li, .stApp label, .stApp textarea, .stApp button {
+    font-family: 'Figtree', system-ui, sans-serif;
+}
+.stApp h1, .stApp h2, .stApp h3, .hero-title, .section-title, .mh-title {
+    font-family: 'Bricolage Grotesque', 'Figtree', sans-serif;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+}
+.stApp p, .stApp li { color: var(--ink); }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; padding: 0.4rem 0 1.6rem; animation: rise 0.8s var(--ease) both; }
+.hero-ring {
+    position: absolute; right: -30px; top: -34px; width: 170px; height: 170px; border-radius: 50%;
+    border: 1.5px solid rgba(143,168,255,0.45);
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(195,180,255,0.18) 60%, transparent 72%);
+    pointer-events: none;
+}
+.hero-ring::after {
+    content: ""; position: absolute; left: -26px; bottom: 6px; width: 30px; height: 30px; border-radius: 50%;
+    background: linear-gradient(140deg, var(--mint), var(--blue)); opacity: 0.7;
+    box-shadow: 0 8px 20px -6px rgba(90,205,160,0.6);
+}
+.pill {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.32rem 0.85rem; border-radius: 999px;
+    background: var(--glass-strong); border: 1px solid var(--edge);
+    box-shadow: var(--shadow); font-size: 0.82rem; font-weight: 600; color: var(--muted);
+}
+.pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: linear-gradient(140deg, #5FD9B0, #7C93FF);
+    box-shadow: 0 0 0 4px rgba(95,217,176,0.22);
+}
+.hero-title {
+    font-size: clamp(2.1rem, 5.4vw, 3.3rem); font-weight: 700; line-height: 1.04;
+    margin: 1rem 0 0.7rem; max-width: 640px;
+    background: linear-gradient(115deg, #1F2340 0%, #3E4BC8 55%, #8A69F0 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+}
+.hero-sub { color: var(--muted); font-size: 1.05rem; max-width: 520px; line-height: 1.55; margin: 0; }
+
+.feature-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1.6rem 0 0.4rem; }
+.feature {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.75rem 0.9rem; border-radius: 18px;
+    background: var(--glass); border: 1px solid var(--edge);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.feature .f-icon {
+    width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; font-size: 1.05rem;
+    background: linear-gradient(145deg, #fff, var(--tint, #E4DAFF));
+    box-shadow: 0 6px 14px -8px var(--glow, rgba(120,130,255,0.6));
+    flex-shrink: 0;
+}
+.feature b { display: block; font-size: 0.9rem; color: var(--ink); }
+.feature span { font-size: 0.78rem; color: var(--muted); }
+@media (max-width: 720px) { .feature-row { grid-template-columns: 1fr; } .hero-ring { display: none; } }
+
+.notice {
+    margin: 1rem 0 0.4rem; padding: 0.8rem 1.1rem; border-radius: 16px;
+    background: rgba(255,255,255,0.5); border: 1px dashed rgba(124,147,255,0.4);
+    font-size: 0.88rem; color: var(--muted); line-height: 1.5;
+}
+.notice b { color: var(--ink); }
+
+/* ---------- Compact header (diagnose page) ---------- */
+.brand { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.4rem; }
+.brand .logo {
+    width: 38px; height: 38px; border-radius: 13px; display: grid; place-items: center; font-size: 1.1rem;
+    background: linear-gradient(145deg, #fff, #DCE4FF); box-shadow: 0 8px 18px -8px rgba(115,140,255,0.7);
+}
+.brand .name { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--ink); }
+
+.machine-head { display: flex; align-items: center; gap: 1rem; margin: 1.2rem 0 1.4rem; animation: rise 0.6s var(--ease) both; }
+.mh-title { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+.mh-desc { color: var(--muted); font-size: 0.95rem; margin-top: 0.2rem; }
+
+.section-title { font-size: 1.15rem; font-weight: 700; margin: 0.6rem 0 0.15rem; }
+.section-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.7rem; }
+
+/* ---------- Machine cards ---------- */
+.machine-card {
+    position: relative; overflow: hidden;
+    border-radius: 26px; padding: 1.6rem 1.2rem 1.4rem; min-height: 232px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+    background: var(--glass); border: 1px solid var(--edge);
+    backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: var(--shadow);
+    transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
+}
+.machine-card::before {
+    content: ""; position: absolute; width: 170px; height: 170px; border-radius: 50%;
+    top: -75px; right: -65px; opacity: 0.6;
+    background: radial-gradient(circle, var(--tint) 0%, transparent 70%);
+}
+.machine-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 2px 4px rgba(60,70,140,0.06), 0 26px 50px -18px var(--glow);
+}
+.machine-card .card-icon {
+    position: relative; width: 68px; height: 68px; border-radius: 22px; display: grid; place-items: center; font-size: 1.9rem;
+    background: linear-gradient(145deg, rgba(255,255,255,0.98), var(--tint));
+    box-shadow: 0 12px 26px -12px var(--glow), inset 0 1px 0 #fff;
+    transition: transform 0.35s var(--ease);
+}
+.machine-card:hover .card-icon { transform: rotate(-6deg) scale(1.06); }
+.machine-card .card-title { position: relative; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 1.2rem; margin-top: 0.9rem; color: var(--ink); }
+.machine-card .card-desc { position: relative; font-size: 0.85rem; color: var(--muted); margin-top: 0.35rem; line-height: 1.45; }
+
+.card-icon.small {
+    width: 60px; height: 60px; border-radius: 20px; display: grid; place-items: center; font-size: 1.7rem;
+    background: linear-gradient(145deg, rgba(255,255,255,0.98), var(--tint));
+    box-shadow: 0 12px 26px -12px var(--glow), inset 0 1px 0 #fff;
+}
+
+/* ---------- Buttons ---------- */
+.stButton > button {
+    border-radius: 999px; padding: 0.6rem 1.3rem; font-weight: 600;
+    background: var(--glass-strong); color: var(--ink);
+    border: 1px solid rgba(124,140,220,0.28);
+    box-shadow: 0 6px 16px -10px rgba(80,90,190,0.35);
+    transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), border-color 0.25s, background 0.25s;
+}
+.stButton > button p { color: inherit; font-weight: 600; }
+.stButton > button:hover {
+    transform: translateY(-2px); background: #fff; border-color: rgba(124,147,255,0.7);
+    box-shadow: 0 14px 28px -14px rgba(100,110,240,0.6); color: #3B45B8;
+}
+.stButton > button:active { transform: translateY(0) scale(0.99); }
+.stButton > button[kind="primary"],
+.stButton > button[data-testid="stBaseButton-primary"] {
+    background: linear-gradient(115deg, #7C93FF 0%, #A08BFF 60%, #86D9C4 130%);
+    border: none; color: #fff;
+    box-shadow: 0 14px 30px -12px rgba(124,120,255,0.75);
+}
+.stButton > button[kind="primary"] p,
+.stButton > button[data-testid="stBaseButton-primary"] p { color: #fff !important; }
+.stButton > button[kind="primary"]:hover,
+.stButton > button[data-testid="stBaseButton-primary"]:hover {
+    color: #fff; background: linear-gradient(115deg, #6F87FF 0%, #9679FF 60%, #7ACFB8 130%);
+    box-shadow: 0 20px 38px -14px rgba(124,120,255,0.85);
+}
+.stButton > button:focus-visible { outline: 3px solid rgba(124,147,255,0.55); outline-offset: 2px; }
+
+/* ---------- Radio (problem picker) ---------- */
+div[role="radiogroup"] { gap: 0.55rem; }
+div[role="radiogroup"] > label {
+    width: 100%; padding: 0.72rem 1rem; border-radius: 16px;
+    background: var(--glass); border: 1px solid var(--edge);
+    box-shadow: 0 4px 14px -10px rgba(80,90,190,0.35);
+    transition: transform 0.25s var(--ease), border-color 0.25s, background 0.25s, box-shadow 0.25s;
+}
+div[role="radiogroup"] > label:hover { transform: translateX(3px); border-color: rgba(124,147,255,0.5); background: rgba(255,255,255,0.85); }
+div[role="radiogroup"] > label:has(input:checked) {
+    background: linear-gradient(120deg, rgba(143,168,255,0.24), rgba(195,180,255,0.28));
+    border-color: rgba(124,147,255,0.65);
+    box-shadow: 0 12px 26px -16px rgba(100,110,240,0.7);
+}
+div[role="radiogroup"] p { color: var(--ink); font-weight: 500; }
+
+/* ---------- Text area ---------- */
+.stTextArea label p { color: var(--ink); font-weight: 600; }
+div[data-baseweb="textarea"], div[data-baseweb="base-input"] {
+    border-radius: 18px !important; background: var(--glass-strong) !important;
+    border: 1px solid rgba(124,140,220,0.25) !important;
+    box-shadow: 0 6px 18px -12px rgba(80,90,190,0.35);
+    transition: box-shadow 0.25s, border-color 0.25s;
+}
+div[data-baseweb="textarea"]:focus-within {
+    border-color: rgba(124,147,255,0.8) !important;
+    box-shadow: 0 0 0 4px rgba(143,168,255,0.22), 0 10px 26px -14px rgba(100,110,240,0.6);
+}
+.stTextArea textarea { background: transparent !important; color: var(--ink) !important; border-radius: 18px; }
+
+/* ---------- Alerts, expanders, divider ---------- */
+[data-testid="stAlert"] {
+    border-radius: 18px; border: 1px solid var(--edge);
+    background: var(--glass-strong); box-shadow: var(--shadow);
+}
+[data-testid="stExpander"] {
+    border-radius: 18px; border: 1px solid var(--edge) !important;
+    background: var(--glass); box-shadow: var(--shadow); overflow: hidden;
+}
+[data-testid="stExpander"] summary:hover { background: rgba(143,168,255,0.10); }
+hr { border: none; height: 1px; background: linear-gradient(90deg, transparent, rgba(124,147,255,0.4), transparent); margin: 1.8rem 0; }
+
+/* ---------- Report card (bordered container) ---------- */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 26px !important; border: 1px solid var(--edge) !important;
+    background: var(--glass); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    box-shadow: var(--shadow); padding: 0.6rem 0.8rem;
+    animation: rise 0.55s var(--ease) both;
+}
+[data-testid="stVerticalBlockBorderWrapper"] h2 {
+    font-size: 1.15rem; font-weight: 700; margin-top: 1.4rem; padding-bottom: 0.45rem;
+    border-bottom: 1px solid transparent;
+    border-image: linear-gradient(90deg, rgba(124,147,255,0.55), transparent) 1;
+}
+[data-testid="stVerticalBlockBorderWrapper"] h3 {
+    font-size: 0.98rem; font-weight: 700; margin-top: 1rem; padding-left: 0.7rem;
+    border-left: 3px solid; border-image: linear-gradient(180deg, #7C93FF, #86D9C4) 1;
+}
+
+/* ---------- Chips + status tags ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.chip {
+    display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.85rem; border-radius: 999px;
+    background: rgba(255,255,255,0.78); border: 1px solid rgba(120,130,200,0.2);
+    font-size: 0.82rem; color: var(--muted);
+}
+.chip b { color: var(--ink); font-weight: 600; }
+.source-tag-manual, .source-tag-ai, .conf {
+    display: inline-block; padding: 0.3rem 0.85rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
+}
+.source-tag-manual { background: #D7F7EA; color: #0F6B4A; }
+.source-tag-ai { background: #FFEFCF; color: #8A5A00; }
+.conf-high { background: #D7F7EA; color: #0F6B4A; }
+.conf-medium { background: #FFEFCF; color: #8A5A00; }
+.conf-low { background: #FFE0E3; color: #9C2B3A; }
+
+.safety-box {
+    margin-top: 1.1rem; padding: 1rem 1.2rem; border-radius: 18px; line-height: 1.5;
+    background: linear-gradient(120deg, rgba(255,214,218,0.55), rgba(255,236,222,0.55));
+    border: 1px solid rgba(255,150,160,0.5); color: #7A2530; font-size: 0.92rem;
+}
+
+/* ---------- Motion ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+    .hero, .machine-head, [data-testid="stVerticalBlockBorderWrapper"] { animation: none; }
+    .machine-card, .stButton > button, div[role="radiogroup"] > label, .machine-card .card-icon { transition: none; }
+}
+"""
+
+st.markdown(f"<style>{CUSTOM_CSS}</style>", unsafe_allow_html=True)
 
 
 # =========================================================================
@@ -386,14 +625,55 @@ def init_session_state():
             st.session_state[k] = v
 
 
-def render_header():
-    st.title(f"🛠️ {APP_TITLE}")
-    st.caption(APP_TAGLINE)
-    st.info(
-        "This tool suggests **possible** causes and troubleshooting steps based on a "
-        "technical knowledge base and AI reasoning. It is not a certified diagnosis. "
-        "For critical or unsafe conditions, consult a qualified technician.",
-        icon="ℹ️",
+def tint_style(machine):
+    t = MACHINE_TINTS.get(machine, MACHINE_TINTS["Bearing"])
+    return f"--tint:{t['tint']};--glow:{t['glow']};"
+
+
+def extract_confidence(report_text):
+    """Pull High / Medium / Low out of the '## Confidence' section, if present."""
+    m = re.search(r"##\s*Confidence\s*\n+\W*(High|Medium|Low)", report_text or "", re.IGNORECASE)
+    return m.group(1).capitalize() if m else None
+
+
+def render_header(compact=False):
+    """Hero on the home page, slim brand bar on the diagnose page."""
+    if compact:
+        st.markdown(
+            '<div class="brand"><div class="logo">🛠️</div>'
+            f'<div class="name">{html.escape(APP_TITLE)}</div></div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    st.markdown(
+        '<div class="hero">'
+        '<div class="hero-ring"></div>'
+        '<span class="pill"><span class="dot"></span>Manual-backed, AI-assisted</span>'
+        f'<h1 class="hero-title">{html.escape(APP_TITLE)}</h1>'
+        f'<p class="hero-sub">{html.escape(APP_TAGLINE)}</p>'
+        '<div class="feature-row">'
+        '<div class="feature" style="--tint:#D6E1FF;--glow:rgba(115,140,255,0.55);">'
+        '<div class="f-icon">📖</div><div><b>Manual-backed</b><span>Checked against your knowledge base</span></div></div>'
+        '<div class="feature" style="--tint:#E4DAFF;--glow:rgba(160,135,255,0.55);">'
+        '<div class="f-icon">✨</div><div><b>AI reasoning</b><span>Fills gaps the manual misses</span></div></div>'
+        '<div class="feature" style="--tint:#CFF5E6;--glow:rgba(90,205,160,0.55);">'
+        '<div class="f-icon">🦺</div><div><b>Safety-first</b><span>Every report ends with safety notes</span></div></div>'
+        '</div>'
+        '<div class="notice"><b>Decision support, not a certified diagnosis.</b> '
+        'It suggests possible causes and checks. For critical or unsafe conditions, call a qualified technician.</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def machine_card_html(machine):
+    return (
+        f'<div class="machine-card" style="{tint_style(machine)}">'
+        f'<div class="card-icon">{MACHINE_ICONS[machine]}</div>'
+        f'<div class="card-title">{html.escape(machine)}</div>'
+        f'<div class="card-desc">{html.escape(MACHINE_DESCRIPTIONS[machine])}</div>'
+        '</div>'
     )
 
 
@@ -403,22 +683,15 @@ def render_header():
 
 def page_home(kb):
     render_header()
-    st.subheader("Select a machine to begin")
+    st.markdown('<div class="section-title">Select a machine to begin</div>'
+                '<div class="section-sub">Pick the equipment you are troubleshooting.</div>',
+                unsafe_allow_html=True)
 
     cols = st.columns(3)
     machines = ["Pump", "Bearing", "Air Compressor"]
     for col, machine in zip(cols, machines):
         with col:
-            st.markdown(
-                f"""
-                <div class="machine-card">
-                    <div class="card-icon">{MACHINE_ICONS[machine]}</div>
-                    <div class="card-title">{machine}</div>
-                    <div class="card-desc">{MACHINE_DESCRIPTIONS[machine]}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown(machine_card_html(machine), unsafe_allow_html=True)
             st.write("")
             if st.button("Start Diagnosis", key=f"start_{machine}", use_container_width=True):
                 go_to(
@@ -435,13 +708,19 @@ def page_home(kb):
 
 def page_diagnose(kb):
     machine = st.session_state.selected_machine
-    render_header()
+    render_header(compact=True)
 
     if st.button("← Back to machine selection"):
         go_to("home")
         st.rerun()
 
-    st.subheader(f"{MACHINE_ICONS.get(machine, '')} {machine} Diagnosis")
+    st.markdown(
+        f'<div class="machine-head"><div class="card-icon small" style="{tint_style(machine)}">'
+        f'{MACHINE_ICONS.get(machine, "")}</div>'
+        f'<div><div class="mh-title">{html.escape(str(machine))} diagnosis</div>'
+        f'<div class="mh-desc">{html.escape(MACHINE_DESCRIPTIONS.get(machine, ""))}</div></div></div>',
+        unsafe_allow_html=True,
+    )
 
     problems = get_common_problems(kb, machine)
     default_index = problems.index(st.session_state.selected_problem) if st.session_state.selected_problem in problems else 0
@@ -514,17 +793,31 @@ def run_diagnosis(kb, machine, problem, description):
 
 def render_report(machine, problem, matched_entry, report_text):
     st.divider()
-    st.subheader("📋 Diagnosis Report")
+    st.markdown('<div class="section-title">📋 Diagnosis Report</div>', unsafe_allow_html=True)
+    st.write("")
 
     source_html = (
         '<span class="source-tag-manual">Manual-supported problem</span>'
         if matched_entry
         else '<span class="source-tag-ai">Primarily AI reasoning</span>'
     )
-    st.markdown(f"**Machine:** {machine} &nbsp;&nbsp;|&nbsp;&nbsp; **Reported problem:** {problem} &nbsp;&nbsp;|&nbsp;&nbsp; {source_html}", unsafe_allow_html=True)
-    st.write("")
+    confidence = extract_confidence(report_text)
+    conf_html = (
+        f'<span class="conf conf-{confidence.lower()}">Confidence: {confidence}</span>'
+        if confidence
+        else ""
+    )
 
-    st.markdown(report_text)
+    with st.container(border=True):
+        st.markdown(
+            '<div class="chips">'
+            f'<span class="chip">Machine <b>{html.escape(str(machine))}</b></span>'
+            f'<span class="chip">Reported <b>{html.escape(str(problem))}</b></span>'
+            f'{source_html}{conf_html}'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(report_text)
 
     if matched_entry:
         with st.expander("View matched manual excerpt"):
